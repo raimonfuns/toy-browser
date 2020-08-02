@@ -1,7 +1,5 @@
 const net = require('net');
-const {
-  resolve
-} = require('path');
+const parser = require('./parser');
 
 class Request {
   constructor(options) {
@@ -51,6 +49,9 @@ ${this.bodyText}
         })
       ]
       connection.on('data', (data) => {
+        console.log({
+          data: data.toString()
+        });
         parser.receive(data.toString())
         if (parser.isFinished) {
           resolve(parser.response);
@@ -190,6 +191,7 @@ class TrunkedBodyParser {
     this.READING_THUNK = 1;
     this.READING_THUNK_END = 2;
     this.current = this.WAITING_LENGTH;
+    this.lengthStr = '';
     this.length = 0;
     this.content = [];
     this.charIsDone = false;
@@ -200,17 +202,22 @@ class TrunkedBodyParser {
     if (this.charIsDone) {
       return;
     }
+    console.log({
+      char
+    });
     if (this.current === this.WAITING_LENGTH) {
       if (char === '\r') {
+        this.length = parseInt(this.lengthStr, 16);
         this.charIsDone = true;
         return;
       }
       if (char === '\n') {
+        this.length = parseInt(this.lengthStr, 16);
         this.current = this.READING_THUNK;
         this.charIsDone = true;
         return;
       }
-      this.length += Number(char);
+      this.lengthStr += char;
     }
   }
 
@@ -221,10 +228,6 @@ class TrunkedBodyParser {
 
     if (this.current === this.READING_THUNK) {
       if (char === '\r') {
-        this.charIsDone = true;
-        return;
-      }
-      if (char === '\n') {
         this.charIsDone = true;
         return;
       }
@@ -258,8 +261,14 @@ class TrunkedBodyParser {
       name: 'winter'
     }
   });
-  console.log(request.toString());
 
-  const res = await request.send();
-  console.log(res);
+  try {
+    const res = await request.send();
+    console.log(res);
+    const dom = parser.parseHTML(res.body);
+  } catch (e) {
+    console.log({
+      e
+    });
+  }
 })();
